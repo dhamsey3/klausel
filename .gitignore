@@ -1,0 +1,10 @@
+.env
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+.zen/
+models/*
+!models/.gitkeep
+.DS_Store

@@ -1,0 +1,46 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "klausel"
+version = "0.1.0"
+description = "Klausel: self-hosted, GDPR-compliant document AI and contract reviewer (MinIO + ZenML + Qdrant + Ollama)."
+readme = "README.md"
+# ZenML and PyTorch wheels are most reliable on 3.11/3.12.
+requires-python = ">=3.11,<3.13"
+dependencies = [
+    "boto3>=1.34",
+    "zenml>=0.80,<0.90",
+    "qdrant-client>=1.13,<1.16",
+    "sentence-transformers>=3.0",
+    "torch>=2.2",
+    "pydantic>=2.6",
+    "pydantic-settings>=2.2",
+    "python-dotenv>=1.0",
+    "httpx>=0.27",
+    "pypdf>=4.0",
+    "python-docx>=1.1",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "ruff>=0.5"]
+
+[project.scripts]
+klausel-ingest = "klausel.pipelines.ingestion:main"
+klausel-query = "klausel.cli.query:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/klausel"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "BLE", "RUF"]
+ignore = ["E501"]  # line length is handled by `ruff format`

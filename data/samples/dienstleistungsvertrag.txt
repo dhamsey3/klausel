@@ -1,0 +1,55 @@
+Dienstleistungsvertrag (fiktives Muster zu Testzwecken)
+
+zwischen der Beispiel Software GmbH, Musterstraße 1, 10115 Berlin (nachfolgend „Auftragnehmer“)
+und der Muster Handels AG, Beispielweg 5, 80331 München (nachfolgend „Auftraggeber“).
+
+Ansprechpartner Auftraggeber: max.mustermann@example.com, Tel. +49 89 1234567
+Bankverbindung Auftragnehmer: IBAN DE89 3704 0044 0532 0130 00
+
+§ 1 Vertragsgegenstand
+
+(1) Der Auftragnehmer erbringt für den Auftraggeber Leistungen im Bereich Betrieb und Wartung der Warenwirtschaftssoftware gemäß Anlage 1 (Leistungsbeschreibung).
+
+(2) Ein bestimmter Erfolg ist nicht geschuldet, soweit in Anlage 1 nicht ausdrücklich etwas anderes vereinbart ist.
+
+§ 2 Vergütung
+
+(1) Der Auftraggeber zahlt eine monatliche Pauschale von 4.500,00 EUR zuzüglich der gesetzlichen Umsatzsteuer.
+
+(2) Rechnungen sind innerhalb von 14 Tagen nach Zugang ohne Abzug zahlbar.
+
+(3) Der Auftragnehmer ist berechtigt, die Vergütung jederzeit nach billigem Ermessen und ohne Ankündigung anzupassen.
+
+§ 3 Laufzeit und Kündigung
+
+(1) Der Vertrag beginnt am 1. Januar 2026 und wird auf unbestimmte Zeit geschlossen.
+
+(2) Er kann von beiden Parteien mit einer Frist von drei Monaten zum Ende eines Kalendervierteljahres gekündigt werden.
+
+(3) Das Recht zur außerordentlichen Kündigung aus wichtigem Grund bleibt unberührt.
+
+§ 4 Haftung
+
+(1) Der Auftragnehmer haftet unbeschränkt für Vorsatz und grobe Fahrlässigkeit sowie für Schäden aus der Verletzung des Lebens, des Körpers oder der Gesundheit.
+
+(2) Im Übrigen ist die Haftung des Auftragnehmers, gleich aus welchem Rechtsgrund, vollständig ausgeschlossen.
+
+§ 5 Datenschutz und Auftragsverarbeitung
+
+(1) Soweit der Auftragnehmer personenbezogene Daten im Auftrag verarbeitet, schließen die Parteien einen Vertrag zur Auftragsverarbeitung gemäß Art. 28 DSGVO (Anlage 2).
+
+(2) Der Auftragnehmer darf Unterauftragsverarbeiter mit Sitz in Drittländern ohne vorherige Information des Auftraggebers einsetzen.
+
+(3) Nach Beendigung des Vertrags werden sämtliche personenbezogenen Daten nach Wahl des Auftraggebers gelöscht oder zurückgegeben, sofern keine gesetzliche Aufbewahrungspflicht besteht.
+
+§ 6 Vertraulichkeit
+
+Die Parteien verpflichten sich, alle ihnen im Rahmen dieses Vertrags bekannt gewordenen Geschäftsgeheimnisse der jeweils anderen Partei auch über das Vertragsende hinaus vertraulich zu behandeln.
+
+§ 7 Schlussbestimmungen
+
+(1) Änderungen und Ergänzungen dieses Vertrags bedürfen der Textform.
+
+(2) Gerichtsstand ist Berlin. Es gilt das Recht der Bundesrepublik Deutschland.
+
+(3) Sollte eine Bestimmung dieses Vertrags unwirksam sein, bleibt die Wirksamkeit der übrigen Bestimmungen unberührt.

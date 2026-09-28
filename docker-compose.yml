@@ -1,0 +1,89 @@
+# Local, air-gap-friendly infrastructure for the GDPR Document AI stack.
+# Ports bind to BIND_ADDR (default 127.0.0.1 = loopback only).
+#
+#   docker compose up -d                  # MinIO + bucket init + Qdrant
+#   docker compose up -d minio minio-init # MinIO only (e.g. on your VM, with
+#                                         # BIND_ADDR=<vm private/host-only IP>)
+#   docker compose --profile ollama up -d # also run Ollama in Docker (CPU only on macOS;
+#                                         # prefer the native Ollama app for Metal GPU)
+
+name: klausel
+
+services:
+  minio:
+    # Built from source: MinIO no longer publishes community images.
+    build: { context: docker/minio, target: server }
+    image: klausel/minio:RELEASE.2025-04-22T22-12-26Z
+    container_name: klausel-minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-klausel-admin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-change-me-local-only}
+      MINIO_REGION: ${AWS_DEFAULT_REGION:-eu-central-1}
+      # No phone-home / update checks.
+      MINIO_UPDATE: "off"
+    ports:
+      - "${BIND_ADDR:-127.0.0.1}:9000:9000" # S3 API
+      - "${BIND_ADDR:-127.0.0.1}:9001:9001" # Web console
+    volumes:
+      - minio-data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  # One-shot job: creates the raw-documents bucket, keeps it private and
+  # enables versioning (audit trail for GDPR Art. 5(2) accountability).
+  minio-init:
+    build: { context: docker/minio, target: mc }
+    image: klausel/mc:RELEASE.2025-04-16T18-13-26Z
+    container_name: klausel-minio-init
+    depends_on:
+      minio:
+        condition: service_healthy
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-klausel-admin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-change-me-local-only}
+      S3_BUCKET: ${S3_BUCKET:-legal-docs-raw}
+    entrypoint: >
+      /bin/sh -c "
+      set -e;
+      mc alias set local http://minio:9000 \"$${MINIO_ROOT_USER}\" \"$${MINIO_ROOT_PASSWORD}\";
+      mc mb --ignore-existing local/$${S3_BUCKET};
+      mc anonymous set none local/$${S3_BUCKET};
+      mc version enable local/$${S3_BUCKET};
+      echo 'Bucket ready:' $${S3_BUCKET};
+      "
+    restart: "no"
+
+  qdrant:
+    image: qdrant/qdrant:v1.13.4
+    container_name: klausel-qdrant
+    environment:
+      QDRANT__TELEMETRY_DISABLED: "true"
+      # To require auth (recommended when BIND_ADDR is not loopback), add
+      #   QDRANT__SERVICE__API_KEY: ${QDRANT_API_KEY}
+      # and set the same QDRANT_API_KEY in .env. Never set it to an empty string.
+    ports:
+      - "${BIND_ADDR:-127.0.0.1}:6333:6333" # REST
+      - "${BIND_ADDR:-127.0.0.1}:6334:6334" # gRPC
+    volumes:
+      - qdrant-data:/qdrant/storage
+    restart: unless-stopped
+
+  ollama:
+    image: ollama/ollama:0.6.5
+    container_name: klausel-ollama
+    profiles: ["ollama"]
+    ports:
+      - "${BIND_ADDR:-127.0.0.1}:11434:11434"
+    volumes:
+      - ollama-data:/root/.ollama
+    restart: unless-stopped
+
+volumes:
+  minio-data:
+  qdrant-data:
+  ollama-data:
