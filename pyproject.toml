@@ -24,11 +24,14 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=8", "ruff>=0.5"]
+dev = ["pytest>=8", "ruff>=0.5", "fastapi>=0.110", "uvicorn>=0.29", "python-multipart>=0.0.9"]
+# Local web UI (klausel-web)
+web = ["fastapi>=0.110", "uvicorn>=0.29", "python-multipart>=0.0.9"]
 
 [project.scripts]
 klausel-ingest = "klausel.pipelines.ingestion:main"
 klausel-query = "klausel.cli.query:main"
+klausel-web = "klausel.web.app:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/klausel"]

@@ -60,8 +60,11 @@ klausel/
 │   │   └── chunking.py       # § / Art. / paragraph / sentence-aware chunker
 │   ├── pipelines/
 │   │   └── ingestion.py      # ZenML steps + pipeline  (klausel-ingest)
-│   └── cli/
-│       └── query.py          # RAG CLI                (klausel-query)
+│   ├── cli/
+│   │   └── query.py          # RAG CLI                (klausel-query)
+│   └── web/
+│       ├── app.py            # local web UI server    (klausel-web)
+│       └── index.html        # single-page UI, no external assets
 ├── scripts/
 │   ├── download_model.py     # the ONLY online step: fetch embedding model to ./models
 │   ├── seed_minio.py         # upload local files into the bucket
@@ -98,6 +101,58 @@ takes a few minutes; later starts reuse the built images.
 - MinIO console: <http://localhost:9001> (user/password from `.env`)
 - Qdrant dashboard: <http://localhost:6333/dashboard>
 - ZenML runs: `zenml pipeline runs list`, or `zenml login --local` for the local dashboard
+
+## Web UI
+
+```bash
+make web            # or: klausel-web  (Windows: .venv\Scripts\klausel-web)
+```
+
+Then open <http://127.0.0.1:8000>. Ask in German or English, watch the answer stream
+in, click a citation such as `[1]` to jump to the exact clause text, restrict the
+search to one document, and drop PDF/DOCX/TXT/MD files to upload and index them (they
+go to `uploads/` in the bucket, then through the normal ZenML pipeline). The page's
+own labels switch between EN and DE.
+
+It is a **single-user tool for the machine it runs on**: it binds to `127.0.0.1`
+only, requires an `X-Klausel` header on every API call (so other websites can't post
+to it from your browser) and rejects non-local `Host` headers (DNS rebinding). There
+is no login; don't expose it on a network as is.
+
+## Running Klausel on your own PC
+
+The repository contains no documents, keys or model weights, so anyone can clone it
+and run their own private instance. Each installation has its **own** documents and
+index; nothing is shared with other installations.
+
+You need: Git, Python 3.11/3.12, [Docker Desktop](https://www.docker.com/products/docker-desktop/)
+(for MinIO + Qdrant) and [Ollama](https://ollama.com/download).
+
+**Windows (PowerShell):**
+
+```powershell
+git clone https://github.com/dhamsey3/klausel.git; cd klausel
+copy .env.example .env      # then set MINIO_ROOT_PASSWORD and AWS_SECRET_ACCESS_KEY
+                            # to the same long random value
+docker compose up -d        # MinIO + Qdrant on 127.0.0.1 (first run builds MinIO)
+py -3.12 -m venv .venv
+.venv\Scripts\pip install -e ".[web]"
+.venv\Scripts\zenml init
+.venv\Scripts\python scripts\download_model.py   # one-time, ~470 MB
+ollama pull qwen2.5:3b      # or qwen2.5:7b with a GPU / 16 GB+ RAM
+.venv\Scripts\klausel-web                         # http://127.0.0.1:8000
+```
+
+**macOS / Linux:** `cp .env.example .env`, then `make infra install model`,
+`ollama pull qwen2.5:3b` and `make web`.
+
+If PyTorch fails to load on Windows (`c10.dll`), install the Microsoft Visual C++
+Redistributable: `winget install Microsoft.VCRedist.2015+.x64`.
+
+To use **one shared set of documents** instead, run the services on a server that
+everyone can reach (see the VM section below, with an External switch rather than the
+Default Switch), give each user the same `.env`, and add authentication and TLS in
+front of the services first.
 
 ## German and English
 
@@ -198,8 +253,7 @@ temporary space (freed with `docker builder prune -af`), `qwen2.5:3b` needs 1.9 
   then inside the VM:
   `echo 1 | sudo tee /sys/class/block/sda/device/rescan && sudo growpart /dev/sda 1 && sudo resize2fs /dev/sda1`.
 
-**Admin consoles** (from the PC; there is no end-user web UI yet, questions go through
-`klausel-query`):
+**Admin consoles** (from the PC; for asking questions use the [Web UI](#web-ui)):
 
 | What | URL | Login |
 |---|---|---|
@@ -251,5 +305,4 @@ py -3.12 -m venv .venv; .venv\Scripts\pip install -e ".[dev]"; .venv\Scripts\zen
 - Clause-level review mode: extract clauses, then check each against BGB §§ 305–310 and Art. 28 GDPR.
 - Hybrid search (BM25 + dense) via Qdrant sparse vectors for exact § references.
 - Replace the MinIO root credentials with a dedicated read-only access key for the pipeline.
-- Web chat UI (German/English) served from the VM, so questions don't need the CLI.
 - Evaluate larger models (`qwen2.5:7b`+) on a GPU; the 3B default misjudges legal validity.

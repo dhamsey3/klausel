@@ -1,0 +1,313 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Klausel</title>
+<style>
+  :root {
+    --bg: #f6f5f2; --panel: #ffffff; --ink: #1d1d1b; --muted: #6b6a66; --line: #e3e1db;
+    --accent: #1f5f8b; --accent-ink: #ffffff; --hl: #fff4c7; --ok: #2e7d4f; --bad: #b3261e;
+    --mono: ui-monospace, "Cascadia Mono", Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #151514; --panel: #1f1f1d; --ink: #ecebe6; --muted: #a09e97; --line: #34332f;
+      --accent: #6fb0dc; --accent-ink: #0d1a24; --hl: #4a3f12; --ok: #6cc28f; --bad: #f08a80;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+         font: 15px/1.55 system-ui, "Segoe UI", sans-serif; }
+  .wrap { max-width: 900px; margin: 0 auto; padding: 24px 16px 64px; }
+  header { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 20px; }
+  h1 { font-size: 22px; margin: 0; letter-spacing: -0.01em; }
+  .sub { color: var(--muted); font-size: 13px; }
+  .spacer { flex: 1; }
+  .status { font-size: 13px; color: var(--muted); display: flex; gap: 6px; align-items: center; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
+  .dot.ok { background: var(--ok); } .dot.bad { background: var(--bad); }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
+           padding: 16px; margin-bottom: 16px; }
+  label { font-size: 13px; color: var(--muted); }
+  textarea, select, button { font: inherit; color: inherit; }
+  textarea { width: 100%; min-height: 84px; resize: vertical; padding: 10px 12px;
+             border: 1px solid var(--line); border-radius: 8px; background: var(--bg); }
+  select { padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px;
+           background: var(--bg); max-width: 100%; }
+  .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-top: 10px; }
+  button { padding: 8px 16px; border-radius: 8px; border: 1px solid var(--line);
+           background: var(--panel); cursor: pointer; }
+  button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+  button:disabled { opacity: .55; cursor: default; }
+  .seg button { border-radius: 0; padding: 4px 10px; font-size: 13px; }
+  .seg button:first-child { border-radius: 6px 0 0 6px; }
+  .seg button:last-child { border-radius: 0 6px 6px 0; }
+  .seg button + button { margin-left: -1px; }
+  .seg button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink);
+                                     border-color: var(--accent); }
+  #answer { white-space: pre-wrap; min-height: 1.5em; }
+  .cite { color: var(--accent); cursor: pointer; font-weight: 600; text-decoration: none; }
+  .meta { font-size: 13px; color: var(--muted); margin-top: 10px; }
+  .notice { font-size: 12px; color: var(--muted); margin-top: 12px; border-top: 1px solid var(--line);
+            padding-top: 10px; }
+  .src { border: 1px solid var(--line); border-radius: 8px; margin-top: 8px; }
+  .src summary { padding: 8px 12px; cursor: pointer; display: flex; gap: 10px; flex-wrap: wrap; }
+  .src summary b { color: var(--accent); }
+  .src .path { font-family: var(--mono); font-size: 13px; overflow-wrap: anywhere; }
+  .src .score { color: var(--muted); font-size: 13px; margin-left: auto; }
+  .src pre { margin: 0; padding: 10px 12px; border-top: 1px solid var(--line); white-space: pre-wrap;
+             font: 13px/1.5 var(--mono); max-height: 320px; overflow: auto; }
+  .src.flash { background: var(--hl); transition: background .2s; }
+  .drop { border: 1.5px dashed var(--line); border-radius: 8px; padding: 18px; text-align: center;
+          color: var(--muted); cursor: pointer; }
+  .drop.over { border-color: var(--accent); color: var(--ink); }
+  .job { font-size: 13px; margin-top: 8px; }
+  .job.done { color: var(--ok); } .job.failed { color: var(--bad); }
+  .job pre { white-space: pre-wrap; font: 12px/1.4 var(--mono); color: var(--muted); }
+  h2 { font-size: 15px; margin: 0 0 8px; }
+  .err { color: var(--bad); }
+  @media (max-width: 520px) { .score { margin-left: 0 !important; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Klausel</h1>
+      <div class="sub" data-t="tagline"></div>
+    </div>
+    <div class="spacer"></div>
+    <div class="status"><span class="dot" id="dot"></span><span id="statusText">…</span></div>
+    <div class="seg" role="group" aria-label="Interface language">
+      <button data-ui="en" aria-pressed="true">EN</button><button data-ui="de" aria-pressed="false">DE</button>
+    </div>
+  </header>
+
+  <section class="panel">
+    <label for="q" data-t="askLabel"></label>
+    <textarea id="q"></textarea>
+    <div class="row">
+      <button class="primary" id="askBtn" data-t="ask"></button>
+      <label for="doc" data-t="docLabel"></label>
+      <select id="doc"><option value="" data-t="allDocs"></option></select>
+      <label for="alang" data-t="answerIn"></label>
+      <select id="alang">
+        <option value="" data-t="auto"></option>
+        <option value="en">English</option>
+        <option value="de">Deutsch</option>
+      </select>
+    </div>
+  </section>
+
+  <section class="panel" id="result" hidden>
+    <h2 data-t="answer"></h2>
+    <div id="answer"></div>
+    <div class="meta" id="meta"></div>
+    <div id="sources"></div>
+    <div class="notice" data-t="notice"></div>
+  </section>
+
+  <section class="panel">
+    <h2 data-t="upload"></h2>
+    <div class="drop" id="drop" tabindex="0" role="button" data-t="dropHint"></div>
+    <input type="file" id="file" accept=".pdf,.docx,.txt,.md" hidden>
+    <div id="jobs"></div>
+  </section>
+</div>
+
+<script>
+const T = {
+  en: {
+    tagline: "Local contract assistant, German & English. Nothing leaves your machines.",
+    askLabel: "Your question (English or German)", ask: "Ask", docLabel: "Document",
+    allDocs: "All documents", answerIn: "Answer in", auto: "Same as question",
+    answer: "Answer", sources: "Sources", thinking: "Searching and generating… (a CPU model can take a minute or more)",
+    notice: "Generated by a local AI model from the excerpts below. Check the cited clauses — this is not legal advice.",
+    upload: "Add a document", dropHint: "Drop a PDF, DOCX, TXT or MD file here, or click to choose",
+    uploading: "Uploading", indexing: "Indexing", indexed: "Indexed", failed: "Failed",
+    ready: "Ready", docs: "documents", noDocs: "No documents indexed yet",
+    seconds: "s", placeholder: "e.g. Who is liable for damages?",
+  },
+  de: {
+    tagline: "Lokaler Vertragsassistent, Deutsch & Englisch. Nichts verlässt Ihre Rechner.",
+    askLabel: "Ihre Frage (Deutsch oder Englisch)", ask: "Fragen", docLabel: "Dokument",
+    allDocs: "Alle Dokumente", answerIn: "Antwort auf", auto: "Wie die Frage",
+    answer: "Antwort", sources: "Quellen", thinking: "Suche und Antwort… (ein CPU-Modell braucht ggf. eine Minute oder länger)",
+    notice: "Von einem lokalen KI-Modell aus den Auszügen unten erzeugt. Prüfen Sie die zitierten Klauseln — keine Rechtsberatung.",
+    upload: "Dokument hinzufügen", dropHint: "PDF, DOCX, TXT oder MD hier ablegen oder klicken",
+    uploading: "Hochladen", indexing: "Indexierung", indexed: "Indexiert", failed: "Fehlgeschlagen",
+    ready: "Bereit", docs: "Dokumente", noDocs: "Noch keine Dokumente indexiert",
+    seconds: "s", placeholder: "z. B. Welche Kündigungsfristen gelten?",
+  },
+};
+const $ = (id) => document.getElementById(id);
+let ui = "en";
+try { ui = localStorage.getItem("klausel-ui") || "en"; } catch (e) {}
+
+function applyUi() {
+  document.documentElement.lang = ui;
+  document.querySelectorAll("[data-t]").forEach((el) => {
+    el.textContent = T[ui][el.dataset.t];
+  });
+  $("q").placeholder = T[ui].placeholder;
+  document.querySelectorAll("[data-ui]").forEach((b) =>
+    b.setAttribute("aria-pressed", String(b.dataset.ui === ui)));
+  loadStatus();
+}
+document.querySelectorAll("[data-ui]").forEach((b) => b.addEventListener("click", () => {
+  ui = b.dataset.ui;
+  try { localStorage.setItem("klausel-ui", ui); } catch (e) {}
+  applyUi();
+}));
+
+const api = (path, opts = {}) =>
+  fetch(path, { ...opts, headers: { "X-Klausel": "1", ...(opts.headers || {}) } });
+
+async function loadStatus() {
+  try {
+    const s = await (await api("/api/status")).json();
+    const ok = s.ollama === "ok" && s.qdrant === "ok";
+    $("dot").className = "dot " + (ok ? "ok" : "bad");
+    $("statusText").textContent = ok
+      ? `${T[ui].ready} · ${s.model} · ${s.documents.length} ${T[ui].docs}`
+      : [s.ollama, s.qdrant].filter((x) => x !== "ok").join(" · ");
+    const sel = $("doc"), cur = sel.value;
+    sel.length = 1;
+    sel.options[0].textContent = s.documents.length ? T[ui].allDocs : T[ui].noDocs;
+    s.documents.forEach((d) => sel.add(new Option(d, d)));
+    sel.value = s.documents.includes(cur) ? cur : "";
+  } catch (e) {
+    $("dot").className = "dot bad";
+    $("statusText").textContent = String(e);
+  }
+}
+
+function renderAnswer(text) {
+  // Escape, then turn [n] citations into links to the source cards.
+  const esc = text.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  $("answer").innerHTML = esc.replace(/\[(\d+)\]/g,
+    (m, n) => `<a class="cite" data-n="${n}" href="#src-${n}">[${n}]</a>`);
+}
+$("answer").addEventListener("click", (e) => {
+  const a = e.target.closest(".cite");
+  if (!a) return;
+  e.preventDefault();
+  const card = $("src-" + a.dataset.n);
+  if (!card) return;
+  card.open = true;
+  card.scrollIntoView({ behavior: "smooth", block: "center" });
+  card.classList.add("flash");
+  setTimeout(() => card.classList.remove("flash"), 900);
+});
+
+function renderSources(list) {
+  const box = $("sources");
+  box.replaceChildren();
+  if (!list.length) return;
+  const h = document.createElement("h2");
+  h.textContent = T[ui].sources;
+  h.style.marginTop = "16px";
+  box.append(h);
+  for (const s of list) {
+    const d = document.createElement("details");
+    d.className = "src"; d.id = "src-" + s.n;
+    const sum = document.createElement("summary");
+    const b = document.createElement("b"); b.textContent = `[${s.n}]`;
+    const p = document.createElement("span"); p.className = "path"; p.textContent = `${s.source} #${s.chunk}`;
+    const sc = document.createElement("span"); sc.className = "score"; sc.textContent = `score ${s.score}`;
+    sum.append(b, p, sc);
+    const pre = document.createElement("pre"); pre.textContent = s.text;
+    d.append(sum, pre);
+    box.append(d);
+  }
+}
+
+async function ask() {
+  const question = $("q").value.trim();
+  if (!question) { $("q").focus(); return; }
+  $("askBtn").disabled = true;
+  $("result").hidden = false;
+  $("answer").textContent = "";
+  $("sources").replaceChildren();
+  $("meta").textContent = T[ui].thinking;
+  const t0 = performance.now();
+  let text = "";
+  try {
+    const res = await api("/api/ask", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ question, lang: $("alang").value || null, source: $("doc").value || null }),
+    });
+    if (!res.ok) throw new Error((await res.json()).detail || res.statusText);
+    const reader = res.body.getReader(), dec = new TextDecoder();
+    let buf = "";
+    for (;;) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buf += dec.decode(value, { stream: true });
+      let i;
+      while ((i = buf.indexOf("\n")) >= 0) {
+        const line = buf.slice(0, i); buf = buf.slice(i + 1);
+        if (!line) continue;
+        const ev = JSON.parse(line);
+        if (ev.type === "sources") renderSources(ev.sources);
+        else if (ev.type === "token") { text += ev.text; renderAnswer(text); }
+        else if (ev.type === "error") throw new Error(ev.message);
+      }
+    }
+    $("meta").textContent = `${((performance.now() - t0) / 1000).toFixed(0)} ${T[ui].seconds}`;
+  } catch (e) {
+    $("meta").innerHTML = "";
+    const span = document.createElement("span"); span.className = "err"; span.textContent = String(e.message || e);
+    $("meta").append(span);
+  } finally {
+    $("askBtn").disabled = false;
+  }
+}
+$("askBtn").addEventListener("click", ask);
+$("q").addEventListener("keydown", (e) => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) ask(); });
+
+// Uploads
+const drop = $("drop"), fileIn = $("file");
+drop.addEventListener("click", () => fileIn.click());
+drop.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") fileIn.click(); });
+drop.addEventListener("dragover", (e) => { e.preventDefault(); drop.classList.add("over"); });
+drop.addEventListener("dragleave", () => drop.classList.remove("over"));
+drop.addEventListener("drop", (e) => {
+  e.preventDefault(); drop.classList.remove("over");
+  [...e.dataTransfer.files].forEach(uploadFile);
+});
+fileIn.addEventListener("change", () => { [...fileIn.files].forEach(uploadFile); fileIn.value = ""; });
+
+async function uploadFile(f) {
+  const line = document.createElement("div");
+  line.className = "job"; line.textContent = `${T[ui].uploading}: ${f.name}…`;
+  $("jobs").prepend(line);
+  try {
+    const fd = new FormData(); fd.append("file", f);
+    const res = await api("/api/upload", { method: "POST", body: fd });
+    const body = await res.json();
+    if (!res.ok) throw new Error(body.detail || res.statusText);
+    line.textContent = `${T[ui].indexing}: ${body.key}…`;
+    for (;;) {
+      await new Promise((r) => setTimeout(r, 2000));
+      const j = await (await api("/api/jobs/" + body.job)).json();
+      if (j.state === "running") continue;
+      line.className = "job " + j.state;
+      line.textContent = `${j.state === "done" ? T[ui].indexed : T[ui].failed}: ${j.key}`;
+      if (j.state === "failed") {
+        const pre = document.createElement("pre"); pre.textContent = j.log.join("\n"); line.append(pre);
+      }
+      loadStatus();
+      break;
+    }
+  } catch (e) {
+    line.className = "job failed"; line.textContent = `${T[ui].failed}: ${f.name} — ${e.message || e}`;
+  }
+}
+
+applyUi();
+</script>
+</body>
+</html>

@@ -7,7 +7,7 @@ PY ?= python3.12
 BIN := $(VENV)/bin
 endif
 
-.PHONY: infra infra-down install model seed ingest ask test lint
+.PHONY: infra infra-down install model seed ingest ask web test lint
 
 infra:            ## start MinIO (+ bucket) and Qdrant
 	docker compose up -d
@@ -17,9 +17,9 @@ infra-down:
 
 install:
 	@if command -v uv >/dev/null; then \
-		uv venv --python 3.12 $(VENV) && uv pip install --python $(BIN)/python -e ".[dev]"; \
+		uv venv --python 3.12 $(VENV) && uv pip install --python $(BIN)/python -e ".[dev,web]"; \
 	else \
-		$(PY) -m venv $(VENV) && $(BIN)/pip install -U pip && $(BIN)/pip install -e ".[dev]"; \
+		$(PY) -m venv $(VENV) && $(BIN)/pip install -U pip && $(BIN)/pip install -e ".[dev,web]"; \
 	fi
 	$(BIN)/zenml init
 
@@ -34,6 +34,9 @@ ingest:
 
 ask:
 	$(BIN)/klausel-query --show-context "$(Q)"
+
+web:              ## local web UI on http://127.0.0.1:8000
+	$(BIN)/klausel-web
 
 test:
 	$(BIN)/pytest -q
