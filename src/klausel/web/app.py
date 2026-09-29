@@ -127,7 +127,8 @@ class _Job:
     log: list[str] = field(default_factory=list)
 
 
-_jobs: dict[str, _Job] = {}
+_jobs: dict[str, _Job] = {}  # insertion-ordered, so the first key is the oldest
+_MAX_JOBS = 50
 _ingest_lock = threading.Lock()  # one ZenML run at a time
 
 
@@ -167,6 +168,9 @@ async def upload(file: UploadFile) -> dict:
 
     job_id = uuid.uuid4().hex[:12]
     job = _jobs[job_id] = _Job(key=key)
+    # Keep only recent jobs; a long-running server must not grow without bound.
+    while len(_jobs) > _MAX_JOBS:
+        del _jobs[next(iter(_jobs))]
     threading.Thread(target=_run_ingest, args=(job,), daemon=True).start()
     return {"job": job_id, "key": key}
 

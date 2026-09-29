@@ -69,3 +69,16 @@ def test_ask_streams_sources_then_tokens(client, monkeypatch):
         "text": "§ 3 Kündigung",
     }
     assert "".join(e["text"] for e in events if e["type"] == "token") == "Three months [1]."
+
+
+def test_upload_job_history_is_bounded(client, monkeypatch):
+    monkeypatch.setattr(
+        web, "make_s3_client", lambda s: type("S3", (), {"put_object": lambda *a, **k: None})()
+    )
+    monkeypatch.setattr(web, "_run_ingest", lambda job: None)
+    monkeypatch.setattr(web, "_jobs", {})
+    for i in range(web._MAX_JOBS + 5):
+        r = client.post("/api/upload", headers=H, files={"file": (f"d{i}.txt", b"x")})
+        assert r.status_code == 200
+    assert len(web._jobs) == web._MAX_JOBS
+    assert list(web._jobs.values())[-1].key == f"uploads/d{web._MAX_JOBS + 4}.txt"
