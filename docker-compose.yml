@@ -43,8 +43,8 @@ services:
       retries: 10
     restart: unless-stopped
 
-  # One-shot job: creates the raw-documents bucket, keeps it private and
-  # enables versioning (audit trail for GDPR Art. 5(2) accountability).
+  # One-shot job (docker/minio/init.sh): private, versioned bucket (audit trail for
+  # GDPR Art. 5(2)) and, if MINIO_APP_PASSWORD is set, a least-privilege app user.
   minio-init:
     build: { context: docker/minio, target: mc }
     image: klausel/mc:RELEASE.2025-04-16T18-13-26Z
@@ -56,19 +56,17 @@ services:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-klausel-admin}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-change-me-local-only}
       S3_BUCKET: ${S3_BUCKET:-legal-docs-raw}
-    entrypoint: >
-      /bin/sh -c "
-      set -e;
-      mc alias set local http://minio:9000 \"$${MINIO_ROOT_USER}\" \"$${MINIO_ROOT_PASSWORD}\";
-      mc mb --ignore-existing local/$${S3_BUCKET};
-      mc anonymous set none local/$${S3_BUCKET};
-      mc version enable local/$${S3_BUCKET};
-      echo 'Bucket ready:' $${S3_BUCKET};
-      "
+      MINIO_APP_USER: ${MINIO_APP_USER:-klausel-app}
+      MINIO_APP_PASSWORD: ${MINIO_APP_PASSWORD:-}
+    volumes:
+      - ./docker/minio/init.sh:/klausel/init.sh:ro
+      - ./docker/minio/app-policy.json:/klausel/app-policy.json:ro
+    entrypoint: ["/bin/sh", "/klausel/init.sh"]
     restart: "no"
 
   qdrant:
-    image: qdrant/qdrant:v1.15.5
+    # Pinned by digest: a tag alone could be re-pointed upstream.
+    image: qdrant/qdrant:v1.15.5@sha256:0fb8897412abc81d1c0430a899b9a81eb8328aa634e7242d1bc804c1fe8fe863
     container_name: klausel-qdrant
     environment:
       QDRANT__TELEMETRY_DISABLED: "true"

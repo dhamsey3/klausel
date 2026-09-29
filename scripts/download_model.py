@@ -31,6 +31,7 @@ def main() -> None:
     print(f"Downloading {s.embedding_model_name} -> {target}")
     snapshot_download(
         repo_id=s.embedding_model_name,
+        revision=s.embedding_model_revision,
         local_dir=target,
         # Skip ONNX/OpenVINO/TF variants; PyTorch safetensors is all we need.
         allow_patterns=[

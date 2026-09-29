@@ -44,6 +44,8 @@ class Settings(BaseSettings):
 
     # Embeddings
     embedding_model_name: str = "intfloat/multilingual-e5-small"
+    # Exact Hugging Face commit, so every install gets identical weights.
+    embedding_model_revision: str = "614241f622f53c4eeff9890bdc4f31cfecc418b3"
     embedding_model_dir: Path = PROJECT_ROOT / "models" / "multilingual-e5-small"
     embedding_device: str = "auto"  # auto | cpu | cuda | mps
     embedding_batch_size: int = 32

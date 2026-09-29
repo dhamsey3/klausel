@@ -1,0 +1,6 @@
+# Files that run on Linux (VM, containers) must keep LF line endings, even when
+# the repository is cloned on Windows with core.autocrlf=true.
+*.sh              text eol=lf
+docker/**         text eol=lf
+docker-compose*.yml text eol=lf
+Makefile          text eol=lf

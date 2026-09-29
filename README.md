@@ -136,7 +136,7 @@ copy .env.example .env      # then set MINIO_ROOT_PASSWORD and AWS_SECRET_ACCESS
                             # to the same long random value
 docker compose up -d        # MinIO + Qdrant on 127.0.0.1 (first run builds MinIO)
 py -3.12 -m venv .venv
-.venv\Scripts\pip install -e ".[web]"
+.venv\Scripts\pip install -e ".[web]" -c constraints.txt   # tested versions
 .venv\Scripts\zenml init
 .venv\Scripts\python scripts\download_model.py   # one-time, ~470 MB
 ollama pull qwen2.5:3b      # or qwen2.5:7b with a GPU / 16 GB+ RAM
@@ -222,15 +222,27 @@ temporary space (freed with `docker builder prune -af`), `qwen2.5:3b` needs 1.9 
    ```bash
    scripts/vm/install-ollama-cpu.sh 0.34.4 qwen2.5:3b
    ```
-5. **On your PC**, the same `.env` with the VM's address:
+   The download is verified against Ollama's published SHA-256 before extraction.
+5. **Let only the Windows host in.** Other VMs, WSL and containers on the Default
+   Switch are blocked from MinIO, Qdrant and Ollama (Ollama has no authentication).
+   The rules follow the host's changing IP (it is the VM's default gateway):
+   ```bash
+   sudo scripts/vm/install-firewall.sh
+   ```
+6. **On your PC**, the same `.env` with the VM's address:
    ```
    AWS_ENDPOINT_URL=http://<vm-hostname>.mshome.net:9000
    QDRANT_URL=http://<vm-hostname>.mshome.net:6333
    OLLAMA_URL=http://<vm-hostname>.mshome.net:11434
+   AWS_ACCESS_KEY_ID=klausel-app
+   AWS_SECRET_ACCESS_KEY=<same as MINIO_APP_PASSWORD>
    ```
-   `MINIO_ROOT_PASSWORD` = `AWS_SECRET_ACCESS_KEY` and `QDRANT_API_KEY` must be long
-   random values; generate them with
-   `python -c "import secrets; print(secrets.token_urlsafe(32))"`.
+   `MINIO_ROOT_PASSWORD`, `MINIO_APP_PASSWORD` and `QDRANT_API_KEY` must be long random
+   values; generate each with
+   `python -c "import secrets; print(secrets.token_urlsafe(32))"`. With
+   `MINIO_APP_PASSWORD` set, `minio-init` creates the `klausel-app` user, which can
+   read, write and erase documents in the bucket but cannot change versioning,
+   policies or users. The root login is then only needed for the MinIO console.
 
 **Hyper-V Default Switch notes**
 
@@ -281,6 +293,38 @@ control, put MinIO behind TLS (MinIO reads certs from `~/.minio/certs`) and use 
 This is an engineering blueprint, not legal advice. Do a DPIA (Art. 35)
 before processing real client data.
 
+## Security
+
+**Suitable for:** a single user on machines they control, with test or non-sensitive
+documents. **Before real client data**, close the gaps listed under *Known gaps*.
+
+In place:
+
+- **Credentials:** long random values in the git-ignored `.env` (`chmod 600` on the VM);
+  MinIO refuses to start off loopback with the default password.
+- **Least privilege:** the app uses a `klausel-app` MinIO user limited to one bucket
+  (read/write/erase, no admin); the root login is only for the console.
+- **Access control:** Qdrant requires an API key on the VM; the MinIO bucket is
+  private; on the VM, a firewall admits only the Windows host to MinIO, Qdrant and
+  Ollama (Docker ports are filtered in `DOCKER-USER`, which ufw does not cover).
+- **Web UI:** binds to `127.0.0.1`, rejects non-local `Host` headers and requests
+  without the `X-Klausel` header; untrusted text is escaped; upload names sanitised.
+- **No cloud at runtime:** offline mode is forced for Hugging Face; telemetry is off.
+- **Pinned supply chain:** the Qdrant image by digest, MinIO/mc source by commit
+  hash (build fails if a tag moves), the embedding model by Hugging Face revision,
+  the Ollama download by SHA-256, Python packages via `constraints.txt`.
+
+Known gaps:
+
+- **Model output is unreliable for legal judgement** (a 3B model invented law in
+  testing); always check the cited clause.
+- **Names and addresses are not redacted**, and MinIO keeps the original files by design.
+- **Plain HTTP** between PC and VM: acceptable on the host-only Default Switch, not on a
+  real network (add TLS first).
+- **Keep the VM patched** (`sudo apt update && sudo apt upgrade`).
+- **Prompt injection:** a document can contain text that steers the answer. The model
+  has no tools, so the impact is misleading text, not actions.
+
 ## Development
 
 ```bash
@@ -304,5 +348,4 @@ py -3.12 -m venv .venv; .venv\Scripts\pip install -e ".[dev]"; .venv\Scripts\zen
 - NER-based redaction of names and addresses (e.g. a local spaCy `de_core_news_lg` model).
 - Clause-level review mode: extract clauses, then check each against BGB §§ 305–310 and Art. 28 GDPR.
 - Hybrid search (BM25 + dense) via Qdrant sparse vectors for exact § references.
-- Replace the MinIO root credentials with a dedicated read-only access key for the pipeline.
 - Evaluate larger models (`qwen2.5:7b`+) on a GPU; the 3B default misjudges legal validity.
