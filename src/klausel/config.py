@@ -5,13 +5,23 @@ Offline mode for Hugging Face / ZenML is enforced in `klausel/__init__.py`.
 
 from __future__ import annotations
 
+import os
 from functools import lru_cache
 from pathlib import Path
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
+
+def _project_root() -> Path:
+    """Repo root for an editable install; otherwise $KLAUSEL_HOME or the working directory."""
+    if home := os.environ.get("KLAUSEL_HOME"):
+        return Path(home).expanduser().resolve()
+    src_root = Path(__file__).resolve().parents[2]
+    return src_root if (src_root / "pyproject.toml").exists() else Path.cwd()
+
+
+PROJECT_ROOT = _project_root()
 
 
 class Settings(BaseSettings):
@@ -45,7 +55,7 @@ class Settings(BaseSettings):
 
     # Ollama
     ollama_url: str = "http://localhost:11434"
-    ollama_model: str = "mistral:7b-instruct"
+    ollama_model: str = "qwen2.5:3b"
     ollama_timeout_s: float = 300.0
     retrieval_top_k: int = 5
 

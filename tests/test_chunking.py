@@ -47,3 +47,12 @@ def test_abbreviations_do_not_split_sentences():
 def test_overlap_must_be_smaller_than_size():
     with pytest.raises(ValueError):
         chunk_text("x", chunk_size=100, overlap=100)
+
+
+def test_english_sections_start_new_chunks():
+    text = "\n".join(
+        f"Section {i} Heading\nThe provider shall perform the services with due care. " * 3
+        for i in range(1, 6)
+    )
+    chunks = chunk_text(text, chunk_size=400, overlap=0)
+    assert sum(c.text.startswith("Section") for c in chunks) >= 3

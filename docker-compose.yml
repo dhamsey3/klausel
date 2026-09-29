@@ -15,13 +15,22 @@ services:
     build: { context: docker/minio, target: server }
     image: klausel/minio:RELEASE.2025-04-22T22-12-26Z
     container_name: klausel-minio
-    command: server /data --console-address ":9001"
+    # Refuse to start when published beyond loopback with the default password.
+    entrypoint: >
+      /bin/sh -c "
+      if [ \"$${BIND_ADDR}\" != 127.0.0.1 ] && [ \"$${MINIO_ROOT_PASSWORD}\" = change-me-local-only ]; then
+        echo 'Refusing to expose MinIO on '$${BIND_ADDR}' with the default password. Set MINIO_ROOT_PASSWORD in .env.' >&2;
+        exit 1;
+      fi;
+      exec /usr/bin/minio server /data --console-address :9001
+      "
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-klausel-admin}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-change-me-local-only}
       MINIO_REGION: ${AWS_DEFAULT_REGION:-eu-central-1}
       # No phone-home / update checks.
       MINIO_UPDATE: "off"
+      BIND_ADDR: ${BIND_ADDR:-127.0.0.1}
     ports:
       - "${BIND_ADDR:-127.0.0.1}:9000:9000" # S3 API
       - "${BIND_ADDR:-127.0.0.1}:9001:9001" # Web console
@@ -59,7 +68,7 @@ services:
     restart: "no"
 
   qdrant:
-    image: qdrant/qdrant:v1.13.4
+    image: qdrant/qdrant:v1.15.5
     container_name: klausel-qdrant
     environment:
       QDRANT__TELEMETRY_DISABLED: "true"
@@ -74,7 +83,7 @@ services:
     restart: unless-stopped
 
   ollama:
-    image: ollama/ollama:0.6.5
+    image: ollama/ollama:0.34.4
     container_name: klausel-ollama
     profiles: ["ollama"]
     ports:

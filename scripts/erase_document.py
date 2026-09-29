@@ -33,11 +33,18 @@ def main() -> None:
 
     if not a.keep_object:
         s3 = make_s3_client(s)
-        versions = s3.list_object_versions(Bucket=s.s3_bucket, Prefix=a.key)
-        for v in versions.get("Versions", []) + versions.get("DeleteMarkers", []):
-            if v["Key"] == a.key:
-                s3.delete_object(Bucket=s.s3_bucket, Key=a.key, VersionId=v["VersionId"])
-        print(f"Removed all versions of s3://{s.s3_bucket}/{a.key}")
+        # Paginate: a single list call returns at most 1000 versions.
+        # Collect first, then delete, so deletions don't disturb pagination.
+        paginator = s3.get_paginator("list_object_versions")
+        version_ids = [
+            v["VersionId"]
+            for page in paginator.paginate(Bucket=s.s3_bucket, Prefix=a.key)
+            for v in page.get("Versions", []) + page.get("DeleteMarkers", [])
+            if v["Key"] == a.key
+        ]
+        for vid in version_ids:
+            s3.delete_object(Bucket=s.s3_bucket, Key=a.key, VersionId=vid)
+        print(f"Removed {len(version_ids)} version(s) of s3://{s.s3_bucket}/{a.key}")
 
 
 if __name__ == "__main__":

@@ -99,6 +99,23 @@ def erase_source(client: QdrantClient, collection: str, source: str) -> None:
     )
 
 
+def list_sources(client: QdrantClient, collection: str) -> set[str]:
+    """Every distinct `source` currently indexed in the collection."""
+    sources: set[str] = set()
+    offset = None
+    while True:
+        points, offset = client.scroll(
+            collection_name=collection,
+            limit=1000,
+            offset=offset,
+            with_payload=["source"],
+            with_vectors=False,
+        )
+        sources.update(p.payload["source"] for p in points if p.payload and "source" in p.payload)
+        if offset is None:
+            return sources
+
+
 def search(
     client: QdrantClient,
     collection: str,

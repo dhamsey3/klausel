@@ -1,7 +1,7 @@
-"""Structure-aware chunking for German legal text.
+"""Structure-aware chunking for German (and English) legal text.
 
 Splits on the strongest boundary that fits: section markers (§ / Art. /
-Abschnitt) -> paragraphs -> sentences -> words, then greedily packs pieces into
+Abschnitt, or Section / Clause / Article N) -> paragraphs -> sentences -> words, then greedily packs pieces into
 chunks of at most `chunk_size` characters with `overlap` characters carried
 over between consecutive chunks.
 """
@@ -12,7 +12,10 @@ import re
 from dataclasses import dataclass
 
 # Lookahead splits keep the marker at the start of the new piece.
-_SECTION_RE = re.compile(r"\n(?=\s*(?:§+\s*\d|Art(?:ikel|\.)\s*\d|Abschnitt\s+\w|Teil\s+\w))")
+_SECTION_RE = re.compile(
+    r"\n(?=\s*(?:§+\s*\d|Art(?:ikel|icle|\.)\s*\d|Abschnitt\s+\w|Teil\s+\w"
+    r"|(?:Section|Clause)\s+\d))"
+)
 _PARAGRAPH_RE = re.compile(r"\n\s*\n")
 # Sentence end, but not after common German abbreviations or "Abs. 1" style numbering.
 _SENTENCE_RE = re.compile(

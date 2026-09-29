@@ -1,0 +1,10 @@
+# Overlay for running the services on a VM that other machines connect to.
+#
+#   docker compose -f docker-compose.yml -f docker-compose.vm.yml up -d
+#
+# Qdrant then requires an API key; the Python side sends the same QDRANT_API_KEY.
+
+services:
+  qdrant:
+    environment:
+      QDRANT__SERVICE__API_KEY: ${QDRANT_API_KEY:?Set QDRANT_API_KEY in .env before exposing Qdrant}

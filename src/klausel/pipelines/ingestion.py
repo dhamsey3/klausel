@@ -1,5 +1,7 @@
 """ZenML ingestion pipeline: MinIO -> extract -> redact -> chunk -> embed -> Qdrant.
 
+Documents deleted from the bucket are pruned from Qdrant at the end of each run.
+
 Run:
     python -m klausel.pipelines.ingestion            # or: klausel-ingest
     klausel-ingest --prefix contracts/ --no-cache
@@ -21,10 +23,13 @@ from klausel.embeddings import get_embedder
 from klausel.ingest.chunking import chunk_text
 from klausel.ingest.extract import SUPPORTED_SUFFIXES, extract_text
 from klausel.ingest.redact import redact
+from klausel.lang import detect_language
 from klausel.storage import get_object_bytes, list_objects, make_s3_client
 from klausel.vectorstore import (
     delete_stale_chunks,
     ensure_collection,
+    erase_source,
+    list_sources,
     make_client,
     upsert_chunks,
 )
@@ -84,6 +89,7 @@ def chunk_documents(
     chunks: list[ChunkRecord] = []
     for doc in documents:
         pieces = chunk_text(doc["text"], chunk_size, chunk_overlap)
+        language = detect_language(doc["text"][:20_000])
         for c in pieces:
             chunks.append(
                 {
@@ -93,7 +99,7 @@ def chunk_documents(
                     "chunk_count": len(pieces),
                     "char_start": c.start,
                     "text": c.text,
-                    "language": "de",
+                    "language": language,
                     "pii_redacted": bool(doc["redactions"]),
                     "ingest_run": run_name,
                 }
@@ -132,6 +138,32 @@ def upsert_to_qdrant(
     return n
 
 
+@step(enable_cache=False)  # depends on live bucket contents
+def prune_deleted_documents(
+    bucket: str, prefix: str, collection: str, upserted_points: int
+) -> Annotated[list[str], "pruned_sources"]:
+    """Drop vectors of documents that no longer exist in the bucket.
+
+    `upserted_points` is unused; taking it as input makes this step run after the upsert.
+    Only sources under `prefix` are considered, so a prefixed run never touches the rest.
+    """
+    client = make_client()
+    if not client.collection_exists(collection):
+        return []
+    live = {o.key for o in list_objects(make_s3_client(), bucket, prefix)}
+    stale = sorted(
+        src
+        for src in list_sources(client, collection)
+        if src.startswith(prefix) and src not in live
+    )
+    for src in stale:
+        erase_source(client, collection, src)
+    if stale:
+        logger.info("Pruned vectors of %d deleted document(s): %s", len(stale), stale)
+    log_metadata(metadata={"pruned_sources": stale}, infer_artifact=True)
+    return stale
+
+
 @pipeline(name="legal_docs_ingestion")
 def ingestion_pipeline(
     bucket: str,
@@ -144,7 +176,8 @@ def ingestion_pipeline(
     docs = load_documents(bucket=bucket, prefix=prefix, redact_pii=redact_pii)
     chunks = chunk_documents(docs, chunk_size=chunk_size, chunk_overlap=chunk_overlap)
     vectors = embed_chunks(chunks)
-    upsert_to_qdrant(chunks, vectors, collection=collection)
+    n = upsert_to_qdrant(chunks, vectors, collection=collection)
+    prune_deleted_documents(bucket=bucket, prefix=prefix, collection=collection, upserted_points=n)
 
 
 def main() -> None:

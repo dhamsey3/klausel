@@ -47,7 +47,11 @@ class LocalEmbedder:
 
     @property
     def dimension(self) -> int:
-        return int(self.model.get_sentence_embedding_dimension())
+        # Renamed in newer sentence-transformers; keep working with older ones.
+        get_dim = getattr(self.model, "get_embedding_dimension", None) or (
+            self.model.get_sentence_embedding_dimension
+        )
+        return int(get_dim())
 
     def _encode(self, texts: list[str]) -> np.ndarray:
         return self.model.encode(

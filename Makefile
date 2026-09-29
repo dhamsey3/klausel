@@ -1,6 +1,11 @@
-PY ?= python3.12
 VENV := .venv
+ifeq ($(OS),Windows_NT)
+PY ?= py -3.12
+BIN := $(VENV)/Scripts
+else
+PY ?= python3.12
 BIN := $(VENV)/bin
+endif
 
 .PHONY: infra infra-down install model seed ingest ask test lint
 

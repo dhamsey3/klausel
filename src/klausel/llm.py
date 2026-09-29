@@ -40,7 +40,8 @@ class OllamaClient:
             "model": self.model,
             "messages": messages,
             "stream": stream,
-            "options": {"temperature": temperature, "num_ctx": 8192},
+            # num_predict caps runaway answers from small models.
+            "options": {"temperature": temperature, "num_ctx": 8192, "num_predict": 1024},
         }
         if not stream:
             r = self._http.post("/api/chat", json=body)
