@@ -1,7 +1,7 @@
 import pytest
 
 from klausel.lang import detect_language
-from klausel.rag import RetrievedContext, build_messages
+from klausel.rag import RetrievedContext, build_messages, is_meta_question
 from klausel.vectorstore import SearchHit
 
 
@@ -41,3 +41,35 @@ def test_german_question_gets_german_prompt_and_labels():
     system, user = build_messages("Ist die Haftungsklausel wirksam?", _ctx(), "de")
     assert "Antworte auf Deutsch" in system["content"]
     assert user["content"].startswith("KONTEXT:\n[1] Quelle: s.txt (Abschnitt 3)")
+
+
+@pytest.mark.parametrize(
+    "q", ["what can you do", "What can you do?", "help", "Was kannst du?", "Wer bist du", "Hilfe"]
+)
+def test_meta_questions_are_detected(q):
+    assert is_meta_question(q)
+
+
+@pytest.mark.parametrize(
+    "q",
+    [
+        "What notice period applies?",
+        "Can the provider change prices?",
+        "Was kann der Auftraggeber bei Verzug verlangen?",
+        "Help me understand the liability clause in section 4 of the service contract please",
+    ],
+)
+def test_contract_questions_are_not_meta(q):
+    assert not is_meta_question(q)
+
+
+def test_meta_question_skips_retrieval_and_model(monkeypatch):
+    import klausel.rag as rag
+
+    def boom(*a, **k):
+        raise AssertionError("must not retrieve")
+
+    monkeypatch.setattr(rag, "retrieve", boom)
+    ctx, stream = rag.answer("Was kannst du?", llm=object())
+    assert ctx.hits == []
+    assert "Verträgen" in "".join(stream)
